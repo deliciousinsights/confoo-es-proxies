@@ -1,0 +1,829 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+
+		<title>Fun &amp; Games with ES Proxies • Christophe Porteneuve @ Fronteers 2019</title>
+
+		<meta name="description" content="Proxies let us do metaprogramming in JavaScript, which is a really cool thing. There are well-established, useful patterns for it to be sure, and we’ll see a few of these. But they can also be used for less obvious results, or plain fun with mischevious tricks and quirky behavior!">
+		<meta name="author" content="Christophe Porteneuve">
+
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <link href='css/fonts.css' rel='stylesheet' type='text/css'>
+		<link rel="stylesheet" href="css/reveal.css">
+		<link rel="stylesheet" href="css/animate.min.css">
+		<link rel="stylesheet" href="css/theme/sky.css" id="theme-basis">
+		<link rel="stylesheet" href="css/theme/pw15.css" id="theme">
+
+    <!-- Code syntax highlighting -->
+    <link rel="stylesheet" href="lib/css/prism.css">
+
+		<!-- If the query includes 'print-pdf', include the PDF print sheet -->
+		<script>
+    if (window.location.search.match(/print-pdf/gi)) {
+      var link = document.createElement('link')
+      link.rel = 'stylesheet'
+      link.type = 'text/css'
+      link.href = 'css/print/pdf.css'
+      document.getElementsByTagName('head')[0].appendChild(link)
+    }
+		</script>
+	</head>
+
+	<body id="prioFix">
+
+		<div class="reveal">
+
+			<!-- Any section element inside of this container is displayed as a slide -->
+			<div class="slides">
+				<section id="mainTitle">
+					<h1>Fun &amp; Games with ES Proxies</h1>
+					<p>
+						A presentation by <a href="http://tddsworld.com/">Christophe Porteneuve</a> at <a href="https://fronteers.nl/congres/2019">Fronteers Conference 2019</a>
+					</p>
+				</section>
+
+				<section id="whoami">
+					<h2>whoami</h2>
+
+					<pre><code data-trim class="language-js">
+const christophe = {
+  family: { wife: 'Élodie', sons: ['Maxence', 'Elliott'] },
+  city: 'Paris, FR',
+  company: 'Delicious Insights',
+  trainings: ['360° ES', 'Modern Web Apps', 'Node.js', '360° Git', 'Webpack'],
+  webDevSince: 1995,
+  mightBeKnownFor: [
+    'Prototype.js',
+    'Prototype and Script.aculo.us',
+    'dotJS',
+    'Paris Web',
+    'NodeSchool Paris',
+  ],
+}
+          </code></pre>
+        </section>
+
+        <section id="core-idea">
+          <h2>“Proxy…” 🤔</h2>
+          <p>ES proxies let us <strong>redefine the semantics of some core language features</strong>.</p>
+          <p class="fragment">A <strong>metaprogramming</strong> feature, like <code>Object.*</code> methods and <strong>well-known symbols</strong>.</p>
+          <p class="fragment">Does not alter the original object: <strong>wraps it</strong>.</p>
+
+          <pre class="fragment"><code class="language-js">
+            const proxy = new Proxy(<i>origObject</i>, <i>handler</i>)
+          </code></pre>
+
+          <p class="fragment">All about AOP, really, so lots of use cases: reactivity / data binding, RBAC, monitoring/logging/timing, delegation…</p>
+
+          <pre class="fragment"><code class="language-js">
+            const chris = { age: 41.91170431211499 }
+            const proxy = <u>new Proxy</u>(christophe, {
+              <u>set(target, prop, value, recipient)</u> {
+                if (prop === 'age' && typeof value !== 'number' || number < 0) {
+                  throw new Error(`Invalid age: ${prop}.  Must be a non-negative number.`)
+                }
+                <u>Reflect.set(target, prop, value, recipient)</u>
+              }
+            })
+          </code></pre>
+        </section>
+
+        <section id="vocabulary">
+          <h2>Vocabulary</h2>
+
+          <div class="fragment">
+            <h4>Trap</h4>
+            <p>
+              A <strong>function</strong> with a pre-defined name that intercepts a <strong>language interaction</strong> to replace or customize it.<br/>
+              It can <strong>delegate</strong> to the original behavior by using the <code>Reflect</code> API, as we’ll see.</p>
+          </div>
+
+          <div class="fragment">
+            <h4>Handler</h4>
+
+            <p>An <strong>object that bundles a series of traps</strong>.  It is usually single-topic and implements just enough traps for its feature.  For instance, negative array indices only need the <code>get</code> and <code>set</code> traps.</p>
+          </div>
+
+          <div class="fragment">
+            <h4>Proxy</h4>
+
+            <p>
+              An object that <strong>wraps another</strong> and intercepts some or all of the possible language interactions on that object.<br/>
+              The list of interactions is obtained through the methods of a <strong>handler</strong> passed at proxy creation time.</p>
+          </div>
+        </section>
+
+        <section id="traps">
+          <h2>Available traps</h2>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Trap</th>
+                <th>Intercepts…</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="fragment">
+                <th><code>get</code></th>
+                <td>Reading a property</td>
+              </tr>
+              <tr class="fragment">
+                <th><code>set</code></th>
+                <td>Writing a property</td>
+              </tr>
+              <tr class="fragment">
+                <th><code>has</code></th>
+                <td>The <code>in</code> operator</td>
+              </tr>
+              <tr class="fragment">
+                <th><code>ownKeys</code></th>
+                <td>
+                  <code>Object.keys</code>,
+                  <code>Object.getOwnPropertyNames</code>,
+                  <code>Object.getOwnPropertySymbols</code>
+                </td>
+              </tr>
+              <tr class="fragment">
+                <th><code>getOwnPropertyDescriptor</code></th>
+                <td><code>Object.getOwnPropertyDescriptor</code>(<code>s</code>)</td>
+              </tr>
+              <tr class="fragment">
+                <th><code>defineProperty</code></th>
+                <td><code>Object.defineProperty</code></td>
+              </tr>
+              <tr class="fragment">
+                <th><code>deleteProperty</code></th>
+                <td>The <code>delete</code> operator</td>
+              </tr>
+              <tr class="fragment">
+                <th><code>isExtensible</code></th>
+                <td><code>Object.isExtensible</code></td>
+              </tr>
+              <tr class="fragment">
+                <th><code>preventExtensions</code></th>
+                <td><code>Object.preventExtensions</code></td>
+              </tr>
+              <tr class="fragment">
+                <th><code>getPrototypeOf</code></th>
+                <td><code>Object.getPrototypeOf</code></td>
+              </tr>
+              <tr class="fragment">
+                <th><code>setPrototypeOf</code></th>
+                <td><code>Object.setPrototypeOf</code></td>
+              </tr>
+              <tr class="fragment">
+                <th><code>apply</code></th>
+                <td>Calling a function</td>
+              </tr>
+              <tr class="fragment">
+                <th><code>construct</code></th>
+                <td>Using a function as constructor (<code><b>new</b> TheFunction</code>)</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section id="reflect">
+          <h2>Accessing the original behavior</h2>
+
+          <p>The <code>Reflect</code> namespace has methods for every trap, with matching signature.</p>
+
+          <p class="fragment">Sometimes it <strong>feels like a duplicate</strong> of <code>Object</code> methods, but there could be <strong>subtle differences</strong><br/>
+            (e.g. no casting, returning booleans instead of throwing).</p>
+
+          <p class="fragment">In general, <strong>“lighter”</strong> than matching <code>Object</code> methods.<br/>
+            Sort of corresponds to what the ES spec calls <strong>“internal slots,”</strong> such as <code>[[Call]]</code>.</p>
+
+          <p class="fragment">I tend to <strong>always use</strong> the <code>Reflect</code> API in my traps, even when it seems easier to go with <code>in</code>, <code>delete</code> or direct property access.  This way I can be sure there are no corner cases.</p>
+        </section>
+
+        <section id="traps-get-set">
+          <h2>Traps: <code>get</code> and <code>set</code></h2>
+
+          <pre><code class="language-js">
+            get(target, prop, receiver)
+          </code></pre>
+
+          <p>Intercepts property reads.</p>
+          <p>Default behavior leverages the reader accessor if any, and defaults to <code>undefined</code> for missing properties.</p>
+
+          <br>
+
+          <div class="fragment">
+            <pre><code class="language-js">
+              set(target, prop, value, receiver)
+            </code></pre>
+
+            <p>Intercepts property writes.</p>
+            <p>Default behavior leverages the writer accessor if any, and creates missing properties on the fly (unless non-extensible).</p>
+          </div>
+
+          <br><br>
+          <p class="fragment">Note: <code>prop</code> is always a <code>String</code> or <code>Symbol</code> (matching property name constraints).</p>
+        </section>
+
+        <section id="demo-get-tpyo">
+          <h2>Fun <code>get</code> demo: <a href="https://github.com/mathiasbynens/tpyo">tpyo</a></h2>
+
+          <p>By Mathias Bynens, v8 engineer, speaker at Fronteers 2018 😉</p>
+
+          <p>Redefines property access to use a Levenstein-distance matching on property typos 😂</p>
+
+          <pre><code class="language-js">
+            const tpyo = require('tpyo')
+
+            const speakers = tpyo(
+              ['Anjana', 'Ashi', 'Charlie', 'Chen', 'Diana', 'Eva', 'Lea', 'Mandy', 'Rachel']
+            )
+            speakers.<u>lengte</u>         // => 9 (niet slecht!)
+            speakers.<u>plop</u>()         // => 'Rachel' (who knew?)
+            speakers.<u>full</u>('of win') // => Of course it is (8 x 'of win')
+
+            const math = tpyo(Math)
+            math.<u>squirt</u>(9) // => 3. Sure.
+          </code></pre>
+        </section>
+
+        <section id="demo-get-tpyo-internals">
+          <h2>Fun <code>get</code> demo: <a href="https://github.com/mathiasbynens/tpyo">tpyo</a></h2>
+
+          <pre><code class="language-js">
+            // Simplified a bit for presentation purposes
+
+            function tpyo(something) {
+              return <u>new Proxy</u>(something, {
+                <u>get(target, name)</u> {
+                  if (name in target) {
+                    return target[name]
+                  }
+
+                  const properties = getProperties(target)
+                  const closestProperty = <u>findSimilarProperty</u>(name, properties)
+                  return target[closestProperty]
+                }
+              })
+            }
+          </code></pre>
+        </section>
+
+        <section id="demo-get-api">
+          <h2>Useful <code>get</code> demo: on-the-fly API proxy</h2>
+
+          <p>Remember the good ol’ times of COM, DCOM, and client-side API proxy generation?</p>
+
+          <p>We can do better than that!</p>
+
+          <pre><code class="language-js">
+              const api = makeRestProxy('https://jsonplaceholder.typicode.com')
+              await api.<u>users</u>()
+              // => [{ id: 1, name: 'Leanne Graham' … }, { id: 2, name: 'Ervin Howell', … }, …]
+
+              await api.users(1)
+              // => { id: 1 name: 'Leanne Graham', username: 'Bret', email: 'Sincere@april.biz', … }
+
+              // (Check out this amazing consistency between fake fields 😅)
+
+              await api.<u>posts</u>(42)
+              // => { userId: 5, id: 42, title: 'commodi ullam…', body: 'odio fugit…' }
+          </code></pre>
+        </section>
+
+        <section id="demo-get-api-internals">
+            <h2>Useful <code>get</code> demo: on-the-fly API proxy</h2>
+
+            <table><tbody><tr>
+              <td>
+                <pre><code class="language-js">
+                  function makeRestProxy(baseURL) {
+                    return new Proxy({}, {
+                      <u>get(target, prop, receiver)</u> {
+                        if (!(prop in target)) {
+                          <u>Reflect.defineProperty</u>(target, prop, {
+                            <u>value: makeFetchCall(baseURL, prop)</u>
+                          })
+                        }
+                        return Reflect.get(target, prop, receiver)
+                      }
+                    })
+                  }
+                </code></pre>
+              </td>
+              <td>
+                <pre><code class="language-js">
+                  // Quite simplified for presentation purposes
+
+                  function makeFetchCall(baseURL, prop) {
+                    return function fetch(id) {
+                      const path = id == null ? '' : `/${id}`
+                      return <u>fetch(`${baseURL}/${prop}${path}`</u>, {
+                        headers: {
+                          Accept: 'application/json',
+                          'Content-Type': 'application/json',
+                        },
+                      })<u>.then((res) => res.json())</u>
+                    }
+                  }
+                </code></pre>
+              </td>
+            </tr></tbody></table>
+        </section>
+<!--
+        <section id="demo-get-vcr">
+          <h2>Useful <code>get</code> demo: VCR</h2>
+
+          <p>FIXME</p>
+        </section>
+ -->
+        <section id="demo-negative-indices">
+          <h2>Useful <code>get</code>+<code>set</code> demo: negative array indices</h2>
+
+          <p>Gawd knows we miss them (from Ruby, etc.) and <a href="https://github.com/keithamus/proposal-array-last"><code>lastItem</code></a>* is nowhere near them.</p>
+
+          <pre><code class="language-js">
+            const names = ['Alice', 'Bob', 'Claire', 'David']
+            const coolNames = allowNegativeIndices(names)
+
+            coolNames<u>[-1]</u>
+            // => 'David'
+
+            coolNames<u>[-2]</u> = 'Clara'
+            names
+            // => ['Alice', 'Bob', 'Clara', 'David']
+          </code></pre>
+
+          <footer>This is a pretty dormant <a href="https://github.com/keithamus/proposal-array-last">stage 1 proposal</a>.</footer>
+        </section>
+
+        <section id="demo-negative-indices-internals">
+          <h2>Useful <code>get</code>+<code>set</code> demo: negative array indices</h2>
+
+          <pre><code class="language-js">
+            function allowNegativeIndices(arr) {
+              return <u>new Proxy</u>(arr, {
+                <u>get(target, prop, receiver)</u> {
+                  if (prop < 0) {
+                    prop = target.length + Number(prop)
+                  }
+                  return Reflect.get(target, prop, receiver)
+                },
+                <u>set(target, prop, value, receiver)</u> {
+                  if (prop < 0) {
+                    prop = target.length + Number(prop)
+                  }
+                  return Reflect.set(target, prop, value, receiver)
+                }
+              })
+            }
+          </code></pre>
+        </section>
+
+        <section id="demo-defensive-objects">
+          <h2>Useful <code>get</code> (+<code>set</code>) demo: defensive objects</h2>
+
+          <p>Sometimes you don’t want <code>undefined</code> on missing props, you want a bona fide exception!</p>
+
+          <pre><code class="language-js">
+            const basis = { first: 'Phil', last: 'Hawksworth' }
+            const defensive = makeDefensive(basis)
+            defensive.first  // => 'Phil'
+            defensive.middle // => ReferenceError: No middle property on object
+          </code></pre>
+        </section>
+
+        <section id="demo-defensive-objects-internals">
+          <h2>Useful <code>get</code> (+<code>set</code>) demo: defensive objects</h2>
+
+          <pre><code class="language-js">
+            function makeDefensive(obj) {
+              return <u>new Proxy</u>(obj, {
+                <u>get(target, prop)</u> {
+                  if (!(prop in target)) {
+                    <u>throw new ReferenceError</u>(`No ${prop} property on object`)
+                  }
+                }
+              })
+            }
+          </code></pre>
+        </section>
+
+        <section id="traps-props">
+          <h2>Traps: <code>getOwnPropertyDescriptor</code>, <code>has</code> and <code>ownKeys</code></h2>
+
+          <pre><code class="language-js">getOwnPropertyDescriptor(target, prop)</code></pre>
+          <p>For the singular and plural versions.  Could be nasty, but <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy/handler/getOwnPropertyDescriptor#Invariants">invariants</a> prevent much nefariousness.</p>
+
+          <br>
+
+          <div class="fragment breathe">
+            <pre><code class="language-js">has(target, prop)</code></pre>
+            <p>Used specifically by the <code>in</code> operator.  The least you can do for “phantom properties.”  Subject to <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy/handler/has#Invariants">invariants</a> too.</p>
+          </div>
+
+          <br>
+
+          <div class="fragment breathe">
+            <pre><code class="language-js">ownKeys(target)</code></pre>
+            <p>Obviously <code>Object.keys()</code>, but also own-property listings (<code>Object.getOwnPropertyNames()</code> and <code>Object.getOwnPropertySymbols()</code>.  <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy/handler/ownKeys#Invariants">Invariants</a> again.</p>
+          </div>
+        </section>
+
+        <section id="traps-descriptors">
+          <h2>Traps: <code>defineProperty</code> and <code>deleteProperty</code></h2>
+
+          <pre><code class="language-js">
+            defineProperty(target, prop, descriptor)
+          </code></pre>
+
+          <p>Returns a boolean, subject to the usual invariants (around configurability and extensibility).  Descriptor is normalized.</p>
+
+          <br>
+
+          <div class="fragment">
+            <pre><code class="language-js">
+              deleteProperty(target, prop)
+            </code></pre>
+
+            <p>Used by the <code>delete</code> operator.  Returns a boolean, subject to invariant (configurability consistency).</p>
+          </div>
+        </section>
+
+        <section id="traps-extension">
+          <h2>Traps: <code>isExtensible</code> and <code>preventExtensions</code></h2>
+
+          <pre><code class="language-js">
+            isExtensible(target)
+          </code></pre>
+
+          <p>For decoration only: has to forward the call anyway.</p>
+
+          <br>
+
+          <div class="fragment">
+            <pre><code class="language-js">
+              preventExtensions(target)
+            </code></pre>
+
+            <p>Lets us intercept, but subject to return value consistency invariant.</p>
+          </div>
+        </section>
+
+        <section id="traps-prototypes">
+          <h2>Traps: <code>getPrototypeOf</code> and <code>setPrototypeOf</code></h2>
+
+          <pre><code class="language-js">
+            getPrototypeOf(target)
+          </code></pre>
+
+          <p>Returns an object or <code>null</code>, subject to a consistency invariant.</p>
+
+          <br>
+
+          <div class="fragment">
+            <pre><code class="language-js">
+              setPrototypeOf(target, prototype)
+            </code></pre>
+
+            <p>Returns a boolean, subject to a consistency invariant.</p>
+          </div>
+        </section>
+
+        <section id="traps-functions">
+          <h2>Traps: <code>apply</code> and <code>construct</code></h2>
+
+          <p>These require targets to be <strong>functions</strong>.</p>
+
+
+          <pre><code class="language-js">
+            apply(target, thisArg, argumentsList)
+          </code></pre>
+
+          <p>Intercepts the call to a function (the <code>(…)</code> operator), plus API-based variants: <code>.apply(…)</code>, <code>.call(…)</code>.</p>
+          <p>Particulary useful for <em>copy-on-write</em> implementations that need to automatically wrap method return values in proxies.</p>
+
+          <br>
+
+          <div class="fragment">
+            <pre><code class="language-js">
+              construct(target, argumentsList, newTarget)
+            </code></pre>
+
+            <p>Intercepts using the <code>new</code> operator on the function.  The result <strong>must</strong> be an object.</p>
+            <p>We don’t usually care about <code>newTarget</code>, unless we want to work around a <code>new.target</code> check that is hindering us.</p>
+          </div>
+        </section>
+
+        <section id="revocable">
+          <h2>Revocable proxies</h2>
+
+          <p>An alternate construction method lets us revoke access to the underlying object (through the proxy, that is) at any time, for any reason.  Makes for “perishable references,” so to speak.</p>
+
+          <pre class="fragment"><code class="language-js">
+            const { proxy, revoke } = Proxy.revocable(target, handler)
+          </code></pre>
+
+          <p class="fragment">This clearly has neat use-cases in security-related scenarios.</p>
+
+          <pre class="fragment"><code class="language-js">
+            const { proxy, revoke } = Proxy.revocable({ first: 'John' }, {})
+
+            proxy.first // => 'John'
+            revoke()
+            proxy.first // => TypeError: Cannot perform 'get' on a proxy that has been revoked
+          </code></pre>
+        </section>
+
+        <section id="metered">
+          <h2>Useful revocable demo: metered access</h2>
+
+          <pre><code class="language-js">
+            const obj = { first: 'John' }
+            const moth = <u>scheduleExpiry(obj, { ttl: 50 })</u>
+
+            sl.first // => 'John'
+            setTimeout(() => console.log(sl.first), 40) // => 'John' after 40ms
+            setTimeout(() => console.log(sl.first), 60) // => TypeError after 60ms
+          </code></pre>
+
+          <pre><code class="language-js">
+            const fx = (...args) => args
+            const meteredFx = <u>meter(fx, { max: 2 })</u>
+            meteredFx('foo')        // => ['foo']
+            meteredFx('bar', 'baz') // => ['bar', 'baz']
+            meteredFx('fuu')        // => TypeError: Cannot perform 'apply' on a proxy that has been revoked
+          </code></pre>
+        </section>
+
+        <section id="metered-internals">
+          <h2>Useful revocable demo: metered access</h2>
+
+          <pre><code class="language-js">
+            function scheduleExpiry(obj, { ttl = 100 } = {}) {
+              const { proxy, revoke } =  Proxy.revocable(obj, {})
+              <u>setTimeout(revoke, ttl)</u>
+              return proxy
+            }
+          </code></pre>
+
+          <pre><code class="language-js">
+            function meter(fx, { max }) {
+              const { proxy, revoke } = Proxy.revocable(fx, {
+                <u>apply(target, thisArg, argumentsList)</u> {
+                  <u>if (--max <= 0) {
+                    revoke()
+                  }</u>
+                  return Reflect.apply(target, thisArg, argumentsList)
+                }
+              })
+              return proxy
+            }
+          </code></pre>
+        </section>
+
+        <section id="immer">
+          <h2>Pure awesomeness: <a href="https://immerjs.github.io/immer/docs/introduction">Immer</a></h2>
+
+          <p>😍 <strong>Amazing</strong> 😍 immutability helper by Michel Westrate (also of MobX fame). Let us write <strong>usual mutative code</strong>!</p>
+
+          <p><strong>Copy-on-write for nested structures</strong> using recursive revocable proxying with almost every trap 😅</p>
+
+          <pre class="fragment"><code class="language-js">
+            import produce from 'immer'
+
+            const baseState = [
+              { todo: 'Learn React', done: true },
+              { todo: 'Try immer', done: false },
+            ]
+
+            const nextState = <u>produce(</u>baseState, (<u>draftState</u>) => {
+              draftState<u>.push</u>({ todo: 'Tweet about it' })
+              draftState[1]<u>.done =</u> true
+            }) // => baseState untouched, nextState correct.
+          </code></pre>
+
+          <footer>
+            <a href="https://egghead.io/lessons/redux-simplify-creating-immutable-data-trees-with-immer">Great Egghead lesson here</a> •
+            <a href="https://medium.com/@mweststrate/introducing-immer-immutability-the-easy-way-9d73d8f71cb3">Introductory post</a> (June 2018)
+          </footer>
+        </section>
+
+        <section id="immer-reducer">
+          <h2>Pure awesomeness: <a href="https://immerjs.github.io/immer/docs/introduction">Immer</a></h2>
+
+          <p>Writing reducer-style logic becomes outrageously approachable:</p>
+
+          <table>
+            <tbody>
+              <tr>
+                <td>
+                  <p><strong>Before</strong></p>
+                  <pre><code class="language-js">
+                    function byId(state, action) {
+                      switch (action.type) {
+                        case RECEIVE_PRODUCTS:
+                          return {
+                            <u>...</u>state,
+                            <u>...</u>action.products.reduce((obj, product) => {
+                              obj[product.id] = product
+                              return obj
+                            }, {})
+                          }
+                        default:
+                          return state
+                      }
+                    }
+                  </code></pre>
+                </td>
+                <td class="fragment">
+                  <p><strong>After</strong></p>
+                  <pre><code class="language-js">
+                    const byId = <u>produce((draft, action)</u> => {
+                      switch (action.type) {
+                        case RECEIVE_PRODUCTS:
+                          action.products.<u>forEach</u>((product) => {
+                            draft[product.id]<u> = </u>product
+                          })
+                        }
+                    })
+                  </code></pre>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section id="immer-react">
+          <h2>Pure awesomeness: <a href="https://immerjs.github.io/immer/docs/introduction">Immer</a></h2>
+
+          <p>Goes delightfully well with React’s (recommended…) function-based <code>setState()</code>:</p>
+
+          <table>
+            <tbody>
+              <tr>
+                <td>
+                  <p><strong>Before</strong></p>
+                  <pre><code class="language-js">
+                    this.setState((prevState) => ({
+                      <u>...</u>prevState,
+                      user: {
+                        <u>...prevState.user</u>,
+                        age: prevState.user.age + 1
+                      }
+                    }))
+                  </code></pre>
+                </td>
+                <td class="fragment">
+                  <p><strong>After</strong></p>
+                  <pre><code class="language-js">
+                    this.setState(
+                      produce((draft) => {
+                        draft.user.age<u> += </u>1
+                      })
+                    )
+                  </code></pre>
+                  </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section id="immer-internals">
+          <h2>Pure awesomeness: <a href="https://immerjs.github.io/immer/docs/introduction">Immer</a></h2>
+
+          <pre><code class="language-js">
+            // Chosen extracts, simplified for presentation purposes
+            export function createProxy(base, parent) {
+              // …
+              const {revoke, proxy} = <u>Proxy.revocable</u>(state, {
+                get(state, prop) {
+                  if (prop === DRAFT_STATE) return state
+                  let { drafts } = state
+                  if (!state.modified && has(drafts, prop)) {
+                    return drafts[prop]
+                  }
+                  // …
+                  return (drafts[prop] = <u>createProxy</u>(value, state))
+                },
+                // …
+              })
+              // …
+            }
+          </code></pre>
+        </section>
+
+        <section id="pitfall">
+          <h2>&lt;Insert obligatory pitfall here&gt;</h2>
+
+          <p>There are issues with <code>this</code>. (Oh noes, <strong>not again</strong>…)</p>
+          <p>Proxy wrapping <strong>affects <code>this</code></strong> (it becomes the proxy).</p>
+          <p>Issues with identify-based mechanisms such as <code>WeakMap</code> (e.g. emulating private instance fields).</p>
+          <p>Issues with <strong>built-in objects</strong> with methods that use internal slots (e.g. <code>Date#getDate()</code>) : circumvents get/set traps.</p>
+
+          <table>
+            <tbody>
+              <tr>
+                <td class="fragment">
+                  <p><strong>Issue</strong></p>
+                  <pre><code class="language-js">
+                    const target = new Date()
+                    const proxy = new Proxy(target, {})
+
+                    proxy.<u>getDate()</u>
+                    // => TypeError: this is not a Date object
+                    // (because `getDate` relies on [[NumberData]])
+                  </code></pre>
+                </td>
+                <td class="fragment">
+                  <p><strong>Workaround</strong></p>
+                  <pre><code class="language-js">
+                    const target = new Date('2019-10-03')
+                    const proxy = new Proxy(target, {
+                      <u>get(target, prop, receiver)</u> {
+                        const result = Reflect.get(target, prop, receiver)
+                        return <u>prop === 'getDate'</u> ? result<u>.bind(target)</u> : result
+                      }
+                    })
+
+                    proxy.getDate() // => 3
+                  </code></pre>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section id="screencasts">
+          <h2>Do you like screencasts?</h2>
+
+          <p>We publish about one new video course every month, mostly around Git and JS.</p>
+
+          <br>
+          <h3><a href="https://screencasts.delicious-insights.com/">screencasts.delicious-insights.com</a></h3>
+          <br>
+
+          <p>As a Fronteers 2019 attendee, you get a <strong>free course of your choice</strong>:</p>
+
+          <br>
+
+          <h3><a href="https://bit.ly/fronteers-screencast">bit.ly/fronteers-screencast</a></h3>
+        </section>
+
+        <section id="thank-you">
+          <h1>Thank you!</h1>
+          <h3>Always bet on JS.</h3>
+          <br>
+          <p>Christophe Porteneuve</p>
+          <p><a href="https://twitter.com/porteneuve">@porteneuve</a></p>
+
+          <p class="breathing">
+            Slides are at <a href="https://bit.ly/fronteers-es-proxies">bit.ly/fronteers-es-proxies</a><br/>
+          </p>
+
+          <footer>h/t to Nicholas C. Zakas’ wonderful <a href="https://leanpub.com/understandinges6/">Understanding ES6</a> and Axel Rauschmayer’s excellent <a href="https://exploringjs.com/es6/">Exploring ES6</a>,<br/>
+            which both have great chapters on ES proxies, and provided the basis for several examples I used.</footer>
+        </section>
+
+			</div>
+		</div>
+
+		<script src="lib/js/head.min.js"></script>
+    <script src="plugin/highlight/prism.js"></script>
+		<script src="js/reveal.js"></script>
+
+		<script>
+      // Full list of configuration options available here: // https://github.com/hakimel/reveal.js#configuration
+      /* global Reveal */
+      Reveal.initialize({
+        controls: true,
+        progress: true,
+        history: true,
+        center: true,
+
+        width: '95%',
+        height: '90%',
+
+        theme: Reveal.getQueryHash().theme, // available themes are in /css/theme
+        transition: Reveal.getQueryHash().transition || 'linear', // default/cube/page/concave/zoom/linear/fade/none
+
+        // Parallax scrolling
+        // parallaxBackgroundImage: 'https://s3.amazonaws.com/hakim-static/reveal-js/reveal-parallax-1.jpg',
+        // parallaxBackgroundSize: '2100px 900px',
+
+        // Optional libraries used to extend on reveal.js
+        dependencies: [
+          { src: 'lib/js/classList.js', condition: function () { return !document.body.classList } },
+          { src: 'plugin/markdown/marked.js', condition: function () { return !!document.querySelector('[data-markdown]') } },
+          { src: 'plugin/markdown/markdown.js', condition: function () { return !!document.querySelector('[data-markdown]') } },
+          { src: 'plugin/zoom-js/zoom.js', async: true, condition: function () { return !!document.body.classList } },
+          { src: 'plugin/notes/notes.js', async: true, condition: function () { return !!document.body.classList } }
+        ]
+      })
+		</script>
+
+	</body>
+</html>
