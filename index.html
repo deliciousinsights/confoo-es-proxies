@@ -545,9 +545,9 @@ const christophe = {
             const obj = { first: 'John' }
             const moth = <u>scheduleExpiry(obj, { ttl: 50 })</u>
 
-            sl.first // => 'John'
-            setTimeout(() => console.log(sl.first), 40) // => 'John' after 40ms
-            setTimeout(() => console.log(sl.first), 60) // => TypeError after 60ms
+            moth.first // => 'John'
+            setTimeout(() => console.log(moth.first), 40) // => 'John' after 40ms
+            setTimeout(() => console.log(moth.first), 60) // => TypeError after 60ms
           </code></pre>
 
           <pre><code class="language-js">
