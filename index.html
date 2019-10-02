@@ -645,9 +645,9 @@ const christophe = {
                     const byId = <u>produce((draft, action)</u> => {
                       switch (action.type) {
                         case RECEIVE_PRODUCTS:
-                          action.products.<u>forEach</u>((product) => {
+                          for (const product of action.products) {
                             draft[product.id]<u> = </u>product
-                          })
+                          }
                         }
                     })
                   </code></pre>
@@ -720,9 +720,9 @@ const christophe = {
           <h2>&lt;Insert obligatory pitfall here&gt;</h2>
 
           <p>There are issues with <code>this</code>. (Oh noes, <strong>not again</strong>…)</p>
-          <p>Proxy wrapping <strong>affects <code>this</code></strong> (it becomes the proxy).</p>
-          <p>Issues with identify-based mechanisms such as <code>WeakMap</code> (e.g. emulating private instance fields).</p>
-          <p>Issues with <strong>built-in objects</strong> with methods that use internal slots (e.g. <code>Date#getDate()</code>) : circumvents get/set traps.</p>
+          <p class="fragment">Proxy wrapping <strong>affects <code>this</code></strong> (it becomes the proxy).</p>
+          <p class="fragment">Issues with identity-based mechanisms such as <code>WeakMap</code> (e.g. emulating private instance fields).</p>
+          <p class="fragment">Issues with <strong>built-in objects</strong> with methods that use internal slots (e.g. <code>Date#getDate()</code>) : circumvents get/set traps.</p>
 
           <table>
             <tbody>
