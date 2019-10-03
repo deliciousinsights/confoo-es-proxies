@@ -402,10 +402,11 @@ const christophe = {
           <pre><code class="language-js">
             function makeDefensive(obj) {
               return <u>new Proxy</u>(obj, {
-                <u>get(target, prop)</u> {
+                <u>get(target, prop, receiver)</u> {
                   if (!(prop in target)) {
                     <u>throw new ReferenceError</u>(`No ${prop} property on object`)
                   }
+                  return Reflect.get(target, prop, receiver)
                 }
               })
             }
