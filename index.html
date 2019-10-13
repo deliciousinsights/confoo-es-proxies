@@ -84,7 +84,7 @@ const christophe = {
             const chris = { age: 41.91170431211499 }
             const proxy = <u>new Proxy</u>(christophe, {
               <u>set(target, prop, value, recipient)</u> {
-                if (prop === 'age' && typeof value !== 'number' || number < 0) {
+                if (prop === 'age' && (typeof value !== 'number' || value < 0)) {
                   throw new Error(`Invalid age: ${prop}.  Must be a non-negative number.`)
                 }
                 <u>Reflect.set(target, prop, value, recipient)</u>
