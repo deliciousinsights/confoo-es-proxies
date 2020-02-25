@@ -3,7 +3,7 @@
 	<head>
 		<meta charset="utf-8">
 
-		<title>Fun &amp; Games with ES Proxies • Christophe Porteneuve @ Fronteers 2019</title>
+		<title>Fun &amp; Games with ES Proxies • Christophe Porteneuve @ Confoo Montréal 2020</title>
 
 		<meta name="description" content="Proxies let us do metaprogramming in JavaScript, which is a really cool thing. There are well-established, useful patterns for it to be sure, and we’ll see a few of these. But they can also be used for less obvious results, or plain fun with mischevious tricks and quirky behavior!">
 		<meta name="author" content="Christophe Porteneuve">
@@ -43,7 +43,7 @@
 				<section id="mainTitle">
 					<h1>Fun &amp; Games with ES Proxies</h1>
 					<p>
-						A presentation by <a href="http://tddsworld.com/">Christophe Porteneuve</a> at <a href="https://fronteers.nl/congres/2019">Fronteers Conference 2019</a>
+						A presentation by <a href="http://tddsworld.com/">Christophe Porteneuve</a> at <a href="https://confoo.ca/en/yul2020/">Confoo Montréal 2020</a>
 					</p>
 				</section>
 
@@ -81,7 +81,7 @@ const christophe = {
           <p class="fragment">All about AOP, really, so lots of use cases: reactivity / data binding, RBAC, monitoring/logging/timing, delegation…</p>
 
           <pre class="fragment"><code class="language-js">
-            const chris = { age: 41.91170431211499 }
+            const chris = { age: 42.31211498973306 }
             const proxy = <u>new Proxy</u>(christophe, {
               <u>set(target, prop, value, recipient)</u> {
                 if (prop === 'age' && (typeof value !== 'number' || value < 0)) {
@@ -231,19 +231,20 @@ const christophe = {
         <section id="demo-get-tpyo">
           <h2>Fun <code>get</code> demo: <a href="https://github.com/mathiasbynens/tpyo">tpyo</a></h2>
 
-          <p>By Mathias Bynens, v8 engineer, speaker at Fronteers 2018 😉</p>
+          <p>By Mathias Bynens, v8 engineer, master of deep tech blogging</p>
 
           <p>Redefines property access to use a Levenstein-distance matching on property typos 😂</p>
 
           <pre><code class="language-js">
             const tpyo = require('tpyo')
 
-            const speakers = tpyo(
-              ['Anjana', 'Ashi', 'Charlie', 'Chen', 'Diana', 'Eva', 'Lea', 'Mandy', 'Rachel']
+            const devs = tpyo(
+              ['Aleth', 'Aurélie', 'Catherine', 'Claudia', 'Gabriela', 'Julie', 'Laïla', 'Marie', 'Roksolana']
             )
-            speakers.<u>lengte</u>         // => 9 (niet slecht!)
-            speakers.<u>plop</u>()         // => 'Rachel' (who knew?)
-            speakers.<u>full</u>('of win') // => Of course it is (8 x 'of win')
+            devs.<u>longueur</u>       // => 9
+            devs.<u>plop</u>()         // => 'Roksolana'
+            devs.<u>full</u>('of win') // => Of course it is (8 x 'of win')
+            devs.<u>calice</u>(-1)     // => ['Marie'] -- same for ostie/crisse ;-)
 
             const math = tpyo(Math)
             math.<u>squirt</u>(9) // => 3. Sure.
@@ -767,11 +768,11 @@ const christophe = {
           <h3><a href="https://screencasts.delicious-insights.com/">screencasts.delicious-insights.com</a></h3>
           <br>
 
-          <p>As a Fronteers 2019 attendee, you get a <strong>free course of your choice</strong>:</p>
+          <p>Or if that’s easier for you:</p>
 
           <br>
 
-          <h3><a href="https://bit.ly/fronteers-screencast">bit.ly/fronteers-screencast</a></h3>
+          <h3><a href="https://bit.ly/confoo-screencasts">bit.ly/confoo-screencasts</a></h3>
         </section>
 
         <section id="thank-you">
@@ -782,7 +783,7 @@ const christophe = {
           <p><a href="https://twitter.com/porteneuve">@porteneuve</a></p>
 
           <p class="breathing">
-            Slides are at <a href="https://bit.ly/fronteers-es-proxies">bit.ly/fronteers-es-proxies</a><br/>
+            Slides are at <a href="https://bit.ly/confoo-es-proxies">bit.ly/confoo-es-proxies</a><br/>
           </p>
 
           <footer>h/t to Nicholas C. Zakas’ wonderful <a href="https://leanpub.com/understandinges6/">Understanding ES6</a> and Axel Rauschmayer’s excellent <a href="https://exploringjs.com/es6/">Exploring ES6</a>,<br/>
